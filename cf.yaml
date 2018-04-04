@@ -218,7 +218,6 @@ Resources:
             #cloud-config
             package_upgrade: true
             packages:
-            - awscli
             - ntp
             - zip
             - unzip
