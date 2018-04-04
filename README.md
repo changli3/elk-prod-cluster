@@ -11,6 +11,12 @@ This CloudFormation creates follows artifacts:
 * ElasticSearch cluster, with an internal loadbalancer (port 9200)
 * Kibana cluster, using the same internal loadbalancer (port 80)
 * Logstash injestion service cluster, using the same internal loadbalancer (port 5504)
+* 3 AutoScaling Group
+* 1 Elastic Load Balancer
+* 1 S3 bucket (for data backup)
+* 1 SNS topic (send monitoring alerts)
+* 1 Bastion with mangement utilities/scripts installed
+* 1 Grafana mornitor instance
 
 ## Run the CloudFormation template with AWS CLI
 
@@ -29,18 +35,9 @@ This will take about 30 minutes to get the instances started.
 * ...drink coffee and wait 30 minutes...
 * Go to the URL in the output section for the environment that you want to access
 
-## Resources created
-* 3 AutoScaling Group
-* 1 Elastic Load Balancer
-* 1 S3 bucket (for data backup)
-* 1 SNS topic (send monitoring alerts)
-* 1 Bastion with utilities installed
-* 1 Grafana mornitor instance
 
 ## Autoscaling
-The autoscaling groups uses the CpuUtilization alarm to autoscale automatically.
-
-Because of this, you wouldn't have to bother making sure that your hosts can sustain the load.
+The autoscaling groups uses the CpuUtilization alarm to autoscale automatically. Because of this, you wouldn't have to bother making sure that your hosts can sustain the load.
 
 ## Alarms
 In order to be sure that you have set up the proper limits for your containers, the following alerts have been but into place:
@@ -53,6 +50,5 @@ In order to be sure that you have set up the proper limits for your containers, 
 These CloudWatch alarms will send an email each time the limits are hit so that you will always be in control of what happens with your stack.
       
 ## Backup
-
 A cronjob has been set up to run every 3 days on the ASG hosts that dump the data in an S3 bucket that is created inside the template.
         
