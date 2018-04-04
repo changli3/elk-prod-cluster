@@ -40,6 +40,16 @@ Parameters:
     Type: String
     Default: 172.31.0.0/16
 
+  kbAsgMaxSize:
+    Type: Number
+    Description: The maximum size of ASG
+    Default: 8
+
+  kbAsgMinSize:
+    Type: Number
+    Description: The minimum size of ASG
+    Default: 1	
+	
 Resources:
 
   Sg:
@@ -49,32 +59,14 @@ Resources:
         Fn::Sub: ${AWS::StackName}-Sg
       VpcId: !Ref VpcId
 
-  SgSshPorts:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !Ref 'Sg'
-      IpProtocol: tcp
-      FromPort: '22'
-      ToPort: '22'
-      CidrIp: !Ref AllowIPs
-
-  SgNodeExporterPorts:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !Ref 'Sg'
-      IpProtocol: tcp
-      FromPort: '9000'
-      ToPort: '9999'
-      CidrIp: !Ref AllowIPs
-
-  SgElbAllTrafficports:
+  SgAllTrafficports:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !Ref 'Sg'
       IpProtocol: tcp
       FromPort: '0'
       ToPort: '65535'
-      SourceSecurityGroupId: !Ref 'ElbSecurityGroup'
+      CidrIp: !Ref AllowIPs
 
   AlertsTopic: 
     Type: AWS::SNS::Topic
@@ -216,7 +208,7 @@ Resources:
             write_files:
             - path: /etc/cron.d/elasticsearch-backup
               content: |
-                0 1 */3 0 0 root aws s3 sync /mnt/elasticsearch/ s3://${ElasticSearchBackup}/$(hostname)/$(date)/
+                0 1 */3 0 0 root aws s3 sync /mnt/elasticsearch/ s3://${ElasticSearchBackup}/$(hostname)/elasticsearch/$(date)/
               permissions: '0600'
             runcmd:
             - curl -s -L https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/install-elasticsearch.sh | bash  -s ${AWS::StackName} ${Sg}
@@ -339,24 +331,6 @@ Resources:
       GroupDescription: Elb Allowed Ports
       VpcId: !Ref VpcId
 
-  ElbSecurityGroupHTTPinbound:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !Ref 'ElbSecurityGroup'
-      IpProtocol: tcp
-      FromPort: '80'
-      ToPort: '80'
-      CidrIp: !Ref AllowIPs
-
-  ElbSecurityGroupESinbound:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !Ref 'ElbSecurityGroup'
-      IpProtocol: tcp
-      FromPort: '9200'
-      ToPort: '9200'
-      CidrIp: !Ref AllowIPs
-
   ElbSecurityGroupElbAllTrafficports:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -364,7 +338,7 @@ Resources:
       IpProtocol: tcp
       FromPort: '0'
       ToPort: '65535'
-      SourceSecurityGroupId: !Ref 'Sg'
+      CidrIp: !Ref AllowIPs
 
   ElbElasticSearch:
     Type: AWS::ElasticLoadBalancing::LoadBalancer
@@ -395,12 +369,208 @@ Resources:
         InstancePort: '9200'
         Protocol: TCP
 
+  kbAsg:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+      - !Ref SubnetID1
+      - !Ref SubnetID2
+      NotificationConfiguration:
+        TopicARN:
+          Ref: AlertsTopic
+        NotificationTypes:
+        - autoscaling:EC2_INSTANCE_LAUNCH
+        - autoscaling:EC2_INSTANCE_TERMINATE
+        - autoscaling:EC2_INSTANCE_LAUNCH_ERROR
+        - autoscaling:EC2_INSTANCE_TERMINATE_ERROR
+      HealthCheckGracePeriod: '600'
+      HealthCheckType: EC2
+      LoadBalancerNames: 
+      LaunchConfigurationName:
+        Ref: kbLc
+      MinSize:
+        Ref: kbAsgMinSize
+      MaxSize:
+        Ref: kbAsgMaxSize
+      DesiredCapacity:
+        Ref: kbAsgMinSize
+      LoadBalancerNames:
+      - Ref: ElbKibana
+      Tags:
+      - Key: Name
+        Value: KibanaCluster
+        PropagateAtLaunch: true
+      - Key: Creator
+        Value:
+          Ref: KeyName
+        PropagateAtLaunch: true
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService:
+          Ref: kbAsgMinSize
+        PauseTime: PT5M
+  kbLc:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId:
+        Ref: Ami
+      BlockDeviceMappings:
+      - DeviceName: /dev/xvdcy
+        Ebs:
+          VolumeSize: 100
+          VolumeType: gp2
+      InstanceType:
+        Ref: InstanceType
+      IamInstanceProfile:
+        Ref: HostProfile
+      KeyName:
+        Ref: KeyName
+      SecurityGroups:
+      - Ref: Sg
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #cloud-config
+            package_upgrade: true
+            packages:
+            - ntp
+            - zip
+            - unzip
+            - wget
+            write_files:
+            - path: /etc/cron.d/kibana-backup
+              content: |
+                0 1 */3 0 0 root aws s3 sync /mnt/kibana/ s3://${ElasticSearchBackup}/$(host)/kibana/$(date)/
+              permissions: '0600'
+            runcmd:
+            - curl -s -L https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/install-kibana.sh | bash  -s ${AWS::StackName} ${Sg}
+
+  kbCpuUtilization:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName:
+        Ref: kbAsg
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        TargetValue: 70
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+
+  kbNetworkInAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+      - Ref: AlertsTopic
+      MetricName: NetworkIn
+      ComparisonOperator: GreaterThanThreshold
+      AlarmDescription: High network input traffic during 15 minutes
+      Statistic: Average
+      Period: '300'
+      Dimensions:
+      - Value:
+          Ref: kbAsg
+        Name: AutoScalingGroupName
+      EvaluationPeriods: '3'
+      InsufficientDataActions:
+      - Ref: AlertsTopic
+      Namespace: AWS/EC2
+      Threshold: '2400000000'
+
+  kbRAMAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+      - Ref: AlertsTopic
+      MetricName: MemoryUtilization
+      ComparisonOperator: GreaterThanThreshold
+      AlarmDescription: Memory utilization > 85% during 15 minutes
+      Statistic: Average
+      Period: '300'
+      Dimensions:
+      - Value:
+          Ref: kbAsg
+        Name: AutoScalingGroupName
+      EvaluationPeriods: '3'
+      InsufficientDataActions:
+      - Ref: AlertsTopic
+      Namespace: System/Linux
+      Threshold: '85'
+
+  kbNetworkOutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+      - Ref: AlertsTopic
+      MetricName: NetworkOut
+      ComparisonOperator: GreaterThanThreshold
+      AlarmDescription: High network output traffic during 15 minutes
+      Statistic: Average
+      Period: '300'
+      Dimensions:
+      - Value:
+          Ref: kbAsg
+        Name: AutoScalingGroupName
+      EvaluationPeriods: '3'
+      InsufficientDataActions:
+      - Ref: AlertsTopic
+      Namespace: AWS/EC2
+      Threshold: '2400000000'
+
+  kbStatusAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+      - Ref: AlertsTopic
+      MetricName: StatusCheckFailed
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmDescription: Alert if asg has degraded instances
+      Statistic: Maximum
+      Period: '60'
+      Dimensions:
+      - Value:
+          Ref: kbAsg
+        Name: AutoScalingGroupName
+      EvaluationPeriods: '2'
+      InsufficientDataActions:
+      - Ref: AlertsTopic
+      Unit: Count
+      Namespace: AWS/EC2
+      Threshold: '1'
+
+  ElbKibana:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      LoadBalancerName:
+        Fn::Sub: ${AWS::StackName}
+      Scheme: internal
+      Subnets: 
+      - !Ref SubnetID1
+      - !Ref SubnetID2
+      SecurityGroups: [ !Ref ElbSecurityGroup ]
+      HealthCheck:
+        Target:
+          Fn::Join:
+          - ''
+          - - 'HTTP:'
+            - '5601'
+            - "/app/kibana"
+        HealthyThreshold: '3'
+        UnhealthyThreshold: '5'
+        Interval: '30'
+        Timeout: '5'
+      Listeners:
+      - LoadBalancerPort: '80'
+        InstancePort: '5601'
+        Protocol: TCP
+      - LoadBalancerPort: '5601'
+        InstancePort: '5601'
+        Protocol: TCP
 
 Outputs:
   Asg:
     Value: !Ref Asg
 
-  URL:
+  ElasticSearchURL:
     Description: The URL to check the ElasticSearch Cluster health
     Value:
       Fn::Join:
@@ -411,6 +581,17 @@ Outputs:
           - DNSName
         - /_cluster/health
 
+  KibanaURL:
+    Description: The URL to view the kibana
+    Value:
+      Fn::Join:
+      - ''
+      - - http://
+        - Fn::GetAtt:
+          - ElbKibana
+          - DNSName
+        - /app/kibana
+		
   SecurityGroup:
     Description: Auto-Discovery SecurityGroup for ElasticSearch
     Value: !Ref Sg
