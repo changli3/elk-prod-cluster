@@ -32,7 +32,7 @@ discovery.zen.minimum_master_nodes: 2
 discovery.zen.hosts_provider: ec2
 discovery.ec2.groups: $2
 discovery.ec2.host_type: private_ip
-network.publish_host: _en0:ipv4_
+network.publish_host: _eth0:ipv4_
 " | tee -a /etc/elasticsearch/elasticsearch.yml
 
 chown -R elasticsearch:elasticsearch /mnt/elasticsearch
