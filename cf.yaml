@@ -242,7 +242,7 @@ Resources:
                 discovery.ec2.host_type: private_ip
               permissions: '0644'
             runcmd:
-            - curl -s -L https://raw.githubusercontent.com/changli3/elk-standalone/master/install.sh | bash
+            - curl -s -L https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/cf.yaml | bash
 
   CpuUtilization:
     Type: AWS::AutoScaling::ScalingPolicy
