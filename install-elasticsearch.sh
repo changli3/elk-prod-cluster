@@ -48,3 +48,4 @@ tar xvf node_exporter-0.16.0-rc.0.linux-amd64.tar.gz
 cp -f node_exporter-0.16.0-rc.0.linux-amd64/node_exporter /usr/local/bin
 
 /usr/local/bin/node_exporter &
+service elasticsearch start
