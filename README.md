@@ -1,7 +1,7 @@
 # ELK cluster on CentOS
 This is a tutorial on how to deploy an autoscaling ELK cluster on CentOS in AWS using CloudFormation.
 
-![ELK Cluster Architect](raw/master/elk-stack-architect.JPG "ELK Cluster Architect")
+![ELK Cluster Architect](https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/elk-stack-architect.JPG "ELK Cluster Architect")
 
 The CloudFormation template and explanation is based on the [NETBEARS](https://netbears.com/blog/elasticsearch-cluster-ubuntu/) company blog. You might want to check the website out for more tutorials like this.
 
