@@ -1,7 +1,9 @@
-# Kibana cluster on Ubuntu
-This is a tutorial on how to deploy an autoscaling Kibana cluster on Ubuntu in AWS using CloudFormation.
+# ELK cluster on CentOS
+This is a tutorial on how to deploy an autoscaling ELK cluster on CentOS in AWS using CloudFormation.
 
-The CloudFormation template and explanation is also posted on the [NETBEARS](https://netbears.com/blog/kibana-cluster-ubuntu/) company blog. You might want to check the website out for more tutorials like this.
+![ELK Cluster Architect](raw/master/elk-stack-architect.JPG "ELK Cluster Architect")
+
+The CloudFormation template and explanation is based on the [NETBEARS](https://netbears.com/blog/elasticsearch-cluster-ubuntu/) company blog. You might want to check the website out for more tutorials like this.
 
 ## Prior to deployment notes
 
@@ -16,22 +18,9 @@ This method ensures that your Kibana service is able to talk properly with all m
 ## Run the CloudFormation template with AWS CLI
 
 ```
-git clone https://github.com/NETBEARS/kibana-cluster-ubuntu.git
+git clone https://github.com/changli3/elk-prod-cluster.git
 
-aws cloudformation create-stack \
-  --stack-name kibana-cluster-ubuntu \
-  --template-body file://cloudformation-template.yaml \
-  --parameters \
-    ParameterKey=Ami,ParameterValue=ami-6e1a0117 \
-    ParameterKey=AsgMaxSize,ParameterValue=8 \
-    ParameterKey=AsgMinSize,ParameterValue=1 \
-    ParameterKey=EmailAlerts,ParameterValue=email_for_alerts@domain.com \
-    ParameterKey=InstanceType,ParameterValue=m4.large \
-    ParameterKey=KeyName,ParameterValue=YOUR_INSTANCE_KEY \
-    ParameterKey=VpcId,ParameterValue=VPC_ID \
-    ParameterKey=SubnetID1,ParameterValue=SUBNET_IN_VPC_ID_1 \
-    ParameterKey=SubnetID2,ParameterValue=SUBNET_IN_VPC_ID_2 \
-  --capabilities CAPABILITY_IAM
+aws cloudformation deploy --stack-name elasticsearch-cluster-01 --parameter-overrides Ami=ami-26ebbc5c AsgMaxSize=8 AsgMinSize=2 EmailAlerts=chang.li3@treasury.gov InstanceType=m3.medium KeyName=TreaEBSLab VpcId=vpc-b3870dd6 SubnetID1=subnet-09f8ca52 SubnetID2=subnet-e0eb9685 --capabilities CAPABILITY_IAM --template-file cf.yaml 
 
 ```
 
