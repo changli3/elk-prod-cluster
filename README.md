@@ -23,7 +23,7 @@ This CloudFormation creates follows artifacts:
 ```
 git clone https://github.com/changli3/elk-prod-cluster.git
 
-aws cloudformation deploy --stack-name elasticsearch-cluster-01 --parameter-overrides Ami=ami-26ebbc5c AsgMaxSize=8 AsgMinSize=3 EmailAlerts=chang.li3@treasury.gov InstanceType=m4.large KeyName=TreaEBSLab VpcId=vpc-b3870dd6 SubnetID1=subnet-09f8ca52 SubnetID2=subnet-e0eb9685 AllowIPs='172.31.0.0/16' --capabilities CAPABILITY_IAM --template-file cf.yaml 
+aws cloudformation deploy --stack-name elasticsearch01 --parameter-overrides Ami=ami-26ebbc5c AsgMaxSize=8 AsgMinSize=2 EmailAlerts=chang.li3@treasury.gov InstanceType=m4.large KeyName=TreaEBSLab VpcId=vpc-b3870dd6 SubnetID1=subnet-09f8ca52 SubnetID2=subnet-e0eb9685 AllowIPs='172.31.0.0/16' --capabilities CAPABILITY_IAM --template-file cf.yaml 
 ```
 
 This will take about 45 minutes to get the instances started.

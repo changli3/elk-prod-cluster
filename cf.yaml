@@ -48,8 +48,8 @@ Parameters:
   kbAsgMinSize:
     Type: Number
     Description: The minimum size of ASG
-    Default: 1	
-	
+    Default: 1
+
 Resources:
 
   Sg:
@@ -437,6 +437,7 @@ Resources:
             - zip
             - unzip
             - wget
+            - java-1.8.0-openjdk
             write_files:
             - path: /etc/cron.d/kibana-backup
               content: |
@@ -541,7 +542,7 @@ Resources:
     Type: AWS::ElasticLoadBalancing::LoadBalancer
     Properties:
       LoadBalancerName:
-        Fn::Sub: ${AWS::StackName}
+        Fn::Sub: ${AWS::StackName}-kb
       Scheme: internal
       Subnets: 
       - !Ref SubnetID1
@@ -591,7 +592,7 @@ Outputs:
           - ElbKibana
           - DNSName
         - /app/kibana
-		
+
   SecurityGroup:
     Description: Auto-Discovery SecurityGroup for ElasticSearch
     Value: !Ref Sg
