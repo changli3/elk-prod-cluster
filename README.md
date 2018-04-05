@@ -11,19 +11,20 @@ This CloudFormation creates follows artifacts:
 * ElasticSearch cluster, with an internal loadbalancer (port 9200 80)
 * Kibana cluster, using with an internal loadbalancer (port 5601 80)
 * Logstash injestion service cluster, using the same internal loadbalancer (port 5044)
+* Prometheus is instaled and running on all instances (port 9090)
 * 3 AutoScaling Group
 * 1 Elastic Load Balancer
 * 1 S3 bucket (for data backup)
 * 1 SNS topic (send monitoring alerts)
 * 1 Bastion with mangement Ansible and utilities/scripts installed and configured
-* 1 Grafana mornitor instance (port 3000)
+* 1 Grafana mornitor instance (port 3000, user/password: admin/admin) 
 
 ## Run the CloudFormation template with AWS CLI
 
 ```
 git clone https://github.com/changli3/elk-prod-cluster.git
 
-aws cloudformation deploy --stack-name elasticsearch02 --parameter-overrides Ami=ami-26ebbc5c AsgMaxSize=8 AsgMinSize=2 EmailAlerts=chang.li3@treasury.gov InstanceType=m4.large KeyName=TreaEBSLab VpcId=vpc-b3870dd6 SubnetID1=subnet-09f8ca52 SubnetID2=subnet-e0eb9685 AllowIPs='172.31.0.0/16' --capabilities CAPABILITY_IAM --template-file cf.yaml 
+aws cloudformation deploy --stack-name elasticsearch01 --parameter-overrides Ami=ami-26ebbc5c AsgMaxSize=8 AsgMinSize=2 kbAsgMaxSize=4 kbAsgMinSize=1 lsAsgMaxSize=4 lsAsgMinSize=1 EmailAlerts=chang.li3@treasury.gov InstanceType=m4.large KeyName=TreaEBSLab VpcId=vpc-b3870dd6 SubnetID1=subnet-09f8ca52 SubnetID2=subnet-e0eb9685 AllowIPs='172.31.0.0/16' --capabilities CAPABILITY_IAM --template-file cf.yaml 
 ```
 
 This will take about 45 minutes to get the instances started.
@@ -38,6 +39,9 @@ This will take about 45 minutes to get the instances started.
 
 ## Autoscaling
 The autoscaling groups uses the CpuUtilization alarm to autoscale automatically. Because of this, you wouldn't have to bother making sure that your hosts can sustain the load.
+
+## Stack Monitoring
+Each node has Prometheus installed. You can monitor the instances via the Grafana instance. You need to add data source and setup the dashboard. Please refer to [this guide] (https://www.robustperception.io/setting-up-grafana-for-prometheus/) for  further readings.
 
 ## Alarms
 In order to be sure that you have set up the proper limits for your containers, the following alerts have been but into place:

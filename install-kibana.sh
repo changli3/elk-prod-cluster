@@ -86,10 +86,23 @@ kibana hard memlock unlimited" | tee -a /etc/security/limits.conf
 service kibana restart
 
 
+cd /home/ec2-user
+wget https://github.com/prometheus/prometheus/releases/download/v2.0.0/prometheus-2.0.0.linux-amd64.tar.gz
+tar -xzf prometheus-2.0.0.linux-amd64.tar.gz
+cd prometheus-*
+echo "
+global:
+ scrape_interval: 10s
+ evaluation_interval: 10s
+scrape_configs:
+ - job_name: 'prometheus'
+   static_configs:
+    - targets:
+      - localhost:9090
+" > prometheus.yml
 
-cd /tmp
-curl -LO https://github.com/prometheus/node_exporter/releases/download/v0.16.0-rc.0/node_exporter-0.16.0-rc.0.linux-amd64.tar.gz
-tar xvf node_exporter-0.16.0-rc.0.linux-amd64.tar.gz
-cp -f node_exporter-0.16.0-rc.0.linux-amd64/node_exporter /usr/local/bin
+echo "@reboot root /home/ec2-user/prometheus-2.0.0.linux-amd64/prometheus
+" > /etc/cron.d/prometheus
 
-/usr/local/bin/node_exporter &
+nohup ./prometheus &
+

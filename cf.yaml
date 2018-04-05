@@ -782,20 +782,17 @@ Resources:
       IamInstanceProfile:
         Ref: HostProfile
       SubnetId: !Ref SubnetID1
+      Tags:
+      - 
+        Key: Name
+        Value: Bastion
       KeyName:
         Ref: KeyName
-      SecurityGroups:
+      SecurityGroupIds:
       - Ref: Sg
       UserData:
         Fn::Base64:
           Fn::Sub: |
-            package_upgrade: true
-            packages:
-            - ntp
-            - zip
-            - unzip
-            - wget
-            - java-1.8.0-openjdk
             runcmd:
             - curl -s -L https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/install-bastion.sh | bash  -s ${AWS::StackName} ${Sg}
 
@@ -814,20 +811,17 @@ Resources:
       IamInstanceProfile:
         Ref: HostProfile
       SubnetId: !Ref SubnetID1
+      Tags:
+      - 
+        Key: Name
+        Value: Grafana
       KeyName:
         Ref: KeyName
-      SecurityGroups:
+      SecurityGroupIds:
       - Ref: Sg
       UserData:
         Fn::Base64:
           Fn::Sub: |
-            package_upgrade: true
-            packages:
-            - ntp
-            - zip
-            - unzip
-            - wget
-            - java-1.8.0-openjdk
             runcmd:
             - curl -s -L https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/install-grafana.sh | bash  -s ${AWS::StackName} ${Sg}
 
@@ -855,18 +849,18 @@ Outputs:
         - /app/kibana
 
   LogStashURL:
-    Description: The URL to view the kibana
+    Description: The URL to view the logstash, you can telnet to see it listening on the LB
     Value:
       Fn::Join:
       - ''
-      - - http://
+      - - 'telnet '
         - Fn::GetAtt:
           - ElbLogStash
           - DNSName
-        - ':5044'
+        - ' 5044'
 
   GrafanaURL:
-    Description: The URL to view the kibana
+    Description: The web front URL to view the Grafana
     Value:
       Fn::Join:
       - ''
