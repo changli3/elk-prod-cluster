@@ -10,12 +10,19 @@ printf 'y' | yum install -y python-pip
 
 pip install --upgrade pip
 pip install awscli
+pip install boto
 
 yum install -y ansible
 
-wget https://raw.githubusercontent.com/ansible/ansible/devel/contrib/inventory/ec2.py
-wget https://raw.githubusercontent.com/ansible/ansible/devel/contrib/inventory/ec2.ini
-mv -y ec2.ini /etc/ansible/ec2.ini
+cd /etc/ansible
+wget https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/ec2.py
+wget https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/ec2.ini
+chmod +x ec2.py
+echo "
+export ANSIBLE_HOSTS=/etc/ansible/ec2.py
+export EC2_INI_PATH=/etc/ansible/ec2.ini
+" >> /home/ec2-user/.bashrc
+
 
 cd /home/ec2-user
 wget https://github.com/prometheus/prometheus/releases/download/v2.0.0/prometheus-2.0.0.linux-amd64.tar.gz
