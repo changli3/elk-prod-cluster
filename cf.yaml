@@ -50,12 +50,12 @@ Parameters:
     Description: The minimum size of Kibana ASG
     Default: 1
 
-  kbAsgMaxSize:
+  lsAsgMaxSize:
     Type: Number
     Description: The maximum size of Logstash ASG
     Default: 4
 
-  kbAsgMinSize:
+  lsAsgMinSize:
     Type: Number
     Description: The minimum size of Logstash ASG
     Default: 1
@@ -764,8 +764,8 @@ Resources:
       Listeners:
       - LoadBalancerPort: '5044'
         InstancePort: '5044'
-        Protocol: TCP		
-		
+        Protocol: TCP
+
 Outputs:
   ElasticSearchURL:
     Description: The URL to check the ElasticSearch Cluster health
