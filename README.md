@@ -8,15 +8,15 @@ The CloudFormation template and explanation is based on the [NETBEARS](https://n
 ## Notes
 
 This CloudFormation creates follows artifacts:
-* ElasticSearch cluster, with an internal loadbalancer (port 9200)
-* Kibana cluster, using the same internal loadbalancer (port 80)
-* Logstash injestion service cluster, using the same internal loadbalancer (port 5504)
+* ElasticSearch cluster, with an internal loadbalancer (port 9200 80)
+* Kibana cluster, using with an internal loadbalancer (port 5601 80)
+* Logstash injestion service cluster, using the same internal loadbalancer (port 5044)
 * 3 AutoScaling Group
 * 1 Elastic Load Balancer
 * 1 S3 bucket (for data backup)
 * 1 SNS topic (send monitoring alerts)
-* 1 Bastion with mangement utilities/scripts installed <working on it...>
-* 1 Grafana mornitor instance <working on it...>
+* 1 Bastion with mangement utilities/scripts installed *working on it...*
+* 1 Grafana mornitor instance *working on it...*
 
 ## Run the CloudFormation template with AWS CLI
 
