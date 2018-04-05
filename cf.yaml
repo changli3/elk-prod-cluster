@@ -756,7 +756,8 @@ Resources:
           Fn::Join:
           - ''
           - - 'HTTP:'
-            - '5044'
+            - '9200'
+            - "/_cluster/health"
         HealthyThreshold: '3'
         UnhealthyThreshold: '5'
         Interval: '30'
