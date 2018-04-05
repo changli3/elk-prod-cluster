@@ -76,7 +76,16 @@ status.allowAnonymous: true
 
 chown -R kibana:kibana /mnt/kibana
 chown kibana:kibana /etc/kibana/kibana.yml
-sudo service kibana restart
+
+echo "
+kibana soft nofile 65536
+kibana hard nofile 65536
+kibana soft memlock unlimited
+kibana hard memlock unlimited" | tee -a /etc/security/limits.conf
+
+service kibana restart
+
+
 
 cd /tmp
 curl -LO https://github.com/prometheus/node_exporter/releases/download/v0.16.0-rc.0/node_exporter-0.16.0-rc.0.linux-amd64.tar.gz

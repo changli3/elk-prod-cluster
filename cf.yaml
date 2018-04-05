@@ -128,11 +128,11 @@ Resources:
             Resource: "*"
             Effect: Allow
       - PolicyName:
-          Fn::Sub: ${AWS::StackName}-DescribeInstances
+          Fn::Sub: ${AWS::StackName}-ManageInstances
         PolicyDocument:
           Statement:
           - Action:
-            - ec2:DescribeInstances
+            - ec2:*
             Resource: "*"
             Effect: Allow
 
@@ -767,6 +767,70 @@ Resources:
         InstancePort: '5044'
         Protocol: TCP
 
+  Bastion:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId:
+        Ref: Ami
+      BlockDeviceMappings:
+      - DeviceName: /dev/sda1
+        Ebs:
+          VolumeSize: 100
+          VolumeType: gp2
+      InstanceType:
+        Ref: InstanceType
+      IamInstanceProfile:
+        Ref: HostProfile
+      SubnetId: !Ref SubnetID1
+      KeyName:
+        Ref: KeyName
+      SecurityGroups:
+      - Ref: Sg
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            package_upgrade: true
+            packages:
+            - ntp
+            - zip
+            - unzip
+            - wget
+            - java-1.8.0-openjdk
+            runcmd:
+            - curl -s -L https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/install-bastion.sh | bash  -s ${AWS::StackName} ${Sg}
+
+  Grafana:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId:
+        Ref: Ami
+      BlockDeviceMappings:
+      - DeviceName: /dev/sda1
+        Ebs:
+          VolumeSize: 100
+          VolumeType: gp2
+      InstanceType:
+        Ref: InstanceType
+      IamInstanceProfile:
+        Ref: HostProfile
+      SubnetId: !Ref SubnetID1
+      KeyName:
+        Ref: KeyName
+      SecurityGroups:
+      - Ref: Sg
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            package_upgrade: true
+            packages:
+            - ntp
+            - zip
+            - unzip
+            - wget
+            - java-1.8.0-openjdk
+            runcmd:
+            - curl -s -L https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/install-grafana.sh | bash  -s ${AWS::StackName} ${Sg}
+
 Outputs:
   ElasticSearchURL:
     Description: The URL to check the ElasticSearch Cluster health
@@ -800,3 +864,14 @@ Outputs:
           - ElbLogStash
           - DNSName
         - ':5044'
+
+  GrafanaURL:
+    Description: The URL to view the kibana
+    Value:
+      Fn::Join:
+      - ''
+      - - http://
+        - Fn::GetAtt:
+          - Grafana
+          - PrivateIp
+        - ':3000'

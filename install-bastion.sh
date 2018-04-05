@@ -1,7 +1,8 @@
 mkfs -t ext4 /dev/xvdcy
 mkdir -p /mnt/elasticsearch
-mount /dev/xvdcy /mnt/elasticsearch
-echo "/dev/xvdcy       /mnt/elasticsearch   ext4    defaults,nofail        0       2" | tee -a /etc/fstab
+mkdir -p /mnt/kibana
+mount /dev/xvdcy /mnt/kibana
+echo "/dev/xvdcy       /mnt/kibana   ext4    defaults,nofail        0       2" | tee -a /etc/fstab
 
 cd /tmp
 wget http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
@@ -40,7 +41,7 @@ discovery.ec2.host_type: private_ip
 network.publish_host: _eth0:ipv4_
 node.master: false
 node.data: false
-node.ingest: true
+node.ingest: false
 " | tee -a /etc/elasticsearch/elasticsearch.yml
 
 chown -R elasticsearch:elasticsearch /mnt/elasticsearch
@@ -49,63 +50,33 @@ printf 'yes' | /usr/share/elasticsearch/bin/elasticsearch-plugin install discove
 systemctl enable elasticsearch.service
 sudo service elasticsearch restart
 
-#setup logStash.repo
-echo "[logstash-6.x]
-name=Elastic repository for 6.x packages
+
+echo "[kibana-6.x]
+name=Kibana repository for 6.x packages
 baseurl=https://artifacts.elastic.co/packages/6.x/yum
 gpgcheck=1
 gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
 enabled=1
 autorefresh=1
-type=rpm-md" | tee /etc/yum.repos.d/logStash.repo
+type=rpm-md" | tee /etc/yum.repos.d/Kibana.repo
 
-#install logStash
-sudo yum install -y logstash
-sudo /sbin/chkconfig logstash on
-
-#setup logStash to handle syslog
-echo 'input {
-  beats {
-    port => 5044
-    ssl => false
-  }
-}
-' | tee /etc/logstash/conf.d/02-beats-input.conf
-
-echo 'filter {
-  if [type] == "syslog" {
-    grok {
-      match => { "message" => "%{SYSLOGTIMESTAMP:syslog_timestamp} %{SYSLOGHOST:syslog_hostname} %{DATA:syslog_program}(?:\[%{POSINT:syslog_pid}\])?: %{GREEDYDATA:syslog_message}" }
-      add_field => [ "received_at", "%{@timestamp}" ]
-      add_field => [ "received_from", "%{host}" ]
-    }
-    syslog_pri { }
-    date {
-      match => [ "syslog_timestamp", "MMM  d HH:mm:ss", "MMM dd HH:mm:ss" ]
-    }
-  }
-}
-' | tee /etc/logstash/conf.d/10-syslog-filter.conf
-
-echo 'output {
-  elasticsearch {
-    hosts => ["localhost:9200"]
-    sniffing => true
-    manage_template => false
-    index => "%{[@metadata][beat]}-%{+YYYY.MM.dd}"
-    document_type => "%{[@metadata][type]}"
-  }
-}
-' | tee /etc/logstash/conf.d/30-elasticsearch-output.conf
-
+yum -y install kibana
+chkconfig --add kibana
+/sbin/chkconfig kibana on
 
 echo "
-logstash soft nofile 65536
-logstash hard nofile 65536
-logstash soft memlock unlimited
-logstash hard memlock unlimited" | tee -a /etc/security/limits.conf
+server.host: 0.0.0.0
+server.defaultRoute: /app/kibana
+elasticsearch.url: http://localhost:9200
+kibana.index: .index
+kibana.defaultAppId: discover
+path.data: /mnt/kibana
+status.allowAnonymous: true
+" | sudo tee -a /etc/kibana/kibana.yml
 
-service logstash restart
+chown -R kibana:kibana /mnt/kibana
+chown kibana:kibana /etc/kibana/kibana.yml
+sudo service kibana restart
 
 cd /tmp
 curl -LO https://github.com/prometheus/node_exporter/releases/download/v0.16.0-rc.0/node_exporter-0.16.0-rc.0.linux-amd64.tar.gz

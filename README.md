@@ -15,8 +15,8 @@ This CloudFormation creates follows artifacts:
 * 1 Elastic Load Balancer
 * 1 S3 bucket (for data backup)
 * 1 SNS topic (send monitoring alerts)
-* 1 Bastion with mangement utilities/scripts installed (*working on it...*)
-* 1 Grafana mornitor instance (*working on it...*)
+* 1 Bastion with mangement Ansible and utilities/scripts installed and configured
+* 1 Grafana mornitor instance (port 3000)
 
 ## Run the CloudFormation template with AWS CLI
 
