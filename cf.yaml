@@ -567,10 +567,196 @@ Resources:
         InstancePort: '5601'
         Protocol: TCP
 
-Outputs:
-  Asg:
-    Value: !Ref Asg
+  lsAsg:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+      - !Ref SubnetID1
+      - !Ref SubnetID2
+      NotificationConfiguration:
+        TopicARN:
+          Ref: AlertsTopic
+        NotificationTypes:
+        - autoscaling:EC2_INSTANCE_LAUNCH
+        - autoscaling:EC2_INSTANCE_TERMINATE
+        - autoscaling:EC2_INSTANCE_LAUNCH_ERROR
+        - autoscaling:EC2_INSTANCE_TERMINATE_ERROR
+      HealthCheckGracePeriod: '600'
+      HealthCheckType: EC2
+      LoadBalancerNames: 
+      LaunchConfigurationName:
+        Ref: lsLc
+      MinSize:
+        Ref: lsAsgMinSize
+      MaxSize:
+        Ref: lsAsgMaxSize
+      DesiredCapacity:
+        Ref: lsAsgMinSize
+      LoadBalancerNames:
+      - Ref: ElbLogStash
+      Tags:
+      - Key: Name
+        Value: LogStashCluster
+        PropagateAtLaunch: true
+      - Key: Creator
+        Value:
+          Ref: KeyName
+        PropagateAtLaunch: true
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService:
+          Ref: lsAsgMinSize
+        PauseTime: PT5M
+  lsLc:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId:
+        Ref: Ami
+      BlockDeviceMappings:
+      - DeviceName: /dev/xvdcy
+        Ebs:
+          VolumeSize: 100
+          VolumeType: gp2
+      InstanceType:
+        Ref: InstanceType
+      IamInstanceProfile:
+        Ref: HostProfile
+      KeyName:
+        Ref: KeyName
+      SecurityGroups:
+      - Ref: Sg
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #cloud-config
+            package_upgrade: true
+            packages:
+            - ntp
+            - zip
+            - unzip
+            - wget
+            - java-1.8.0-openjdk
+            runcmd:
+            - curl -s -L https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/install-logstash.sh | bash  -s ${AWS::StackName} ${Sg}
 
+  lsCpuUtilization:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName:
+        Ref: lsAsg
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        TargetValue: 70
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+
+  lsNetworkInAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+      - Ref: AlertsTopic
+      MetricName: NetworkIn
+      ComparisonOperator: GreaterThanThreshold
+      AlarmDescription: High network input traffic during 15 minutes
+      Statistic: Average
+      Period: '300'
+      Dimensions:
+      - Value:
+          Ref: lsAsg
+        Name: AutoScalingGroupName
+      EvaluationPeriods: '3'
+      InsufficientDataActions:
+      - Ref: AlertsTopic
+      Namespace: AWS/EC2
+      Threshold: '2400000000'
+
+  lsRAMAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+      - Ref: AlertsTopic
+      MetricName: MemoryUtilization
+      ComparisonOperator: GreaterThanThreshold
+      AlarmDescription: Memory utilization > 85% during 15 minutes
+      Statistic: Average
+      Period: '300'
+      Dimensions:
+      - Value:
+          Ref: lsAsg
+        Name: AutoScalingGroupName
+      EvaluationPeriods: '3'
+      InsufficientDataActions:
+      - Ref: AlertsTopic
+      Namespace: System/Linux
+      Threshold: '85'
+
+  lsNetworkOutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+      - Ref: AlertsTopic
+      MetricName: NetworkOut
+      ComparisonOperator: GreaterThanThreshold
+      AlarmDescription: High network output traffic during 15 minutes
+      Statistic: Average
+      Period: '300'
+      Dimensions:
+      - Value:
+          Ref: lsAsg
+        Name: AutoScalingGroupName
+      EvaluationPeriods: '3'
+      InsufficientDataActions:
+      - Ref: AlertsTopic
+      Namespace: AWS/EC2
+      Threshold: '2400000000'
+
+  lsStatusAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions:
+      - Ref: AlertsTopic
+      MetricName: StatusCheckFailed
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmDescription: Alert if asg has degraded instances
+      Statistic: Maximum
+      Period: '60'
+      Dimensions:
+      - Value:
+          Ref: lsAsg
+        Name: AutoScalingGroupName
+      EvaluationPeriods: '2'
+      InsufficientDataActions:
+      - Ref: AlertsTopic
+      Unit: Count
+      Namespace: AWS/EC2
+      Threshold: '1'
+
+  ElbLogStash:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      LoadBalancerName:
+        Fn::Sub: ${AWS::StackName}-ls
+      Scheme: internal
+      Subnets: 
+      - !Ref SubnetID1
+      - !Ref SubnetID2
+      SecurityGroups: [ !Ref ElbSecurityGroup ]
+      HealthCheck:
+        Target:
+          Fn::Join:
+          - ''
+          - - 'HTTP:'
+            - '5044'
+        HealthyThreshold: '3'
+        UnhealthyThreshold: '5'
+        Interval: '30'
+        Timeout: '5'
+      Listeners:
+      - LoadBalancerPort: '5044'
+        InstancePort: '5044'
+        Protocol: TCP		
+		
+Outputs:
   ElasticSearchURL:
     Description: The URL to check the ElasticSearch Cluster health
     Value:
@@ -593,6 +779,13 @@ Outputs:
           - DNSName
         - /app/kibana
 
-  SecurityGroup:
-    Description: Auto-Discovery SecurityGroup for ElasticSearch
-    Value: !Ref Sg
+  LogStashURL:
+    Description: The URL to view the kibana
+    Value:
+      Fn::Join:
+      - ''
+      - - http://
+        - Fn::GetAtt:
+          - ElbLogStash
+          - DNSName
+        - ':5044'
