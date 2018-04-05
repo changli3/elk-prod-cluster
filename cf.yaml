@@ -793,8 +793,9 @@ Resources:
       UserData:
         Fn::Base64:
           Fn::Sub: |
+            #cloud-config
             runcmd:
-            - curl -s -L https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/install-bastion.sh | bash  -s ${AWS::StackName} ${Sg}
+            - curl -s -L https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/install-bastion.sh | sudo bash
 
   Grafana:
     Type: AWS::EC2::Instance
@@ -822,8 +823,9 @@ Resources:
       UserData:
         Fn::Base64:
           Fn::Sub: |
-            runcmd:
-            - curl -s -L https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/install-grafana.sh | bash  -s ${AWS::StackName} ${Sg}
+           #cloud-config
+           runcmd:
+            - curl -s -L https://raw.githubusercontent.com/changli3/elk-prod-cluster/master/install-grafana.sh | sudo bash 
 
 Outputs:
   ElasticSearchURL:
